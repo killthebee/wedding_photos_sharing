@@ -4,20 +4,27 @@ import asyncio
 
 from aiohttp import web
 
-INTERVAL_SECS = 1
+INTERVAL_SECS = 0.5
 
 
 async def archivate(request):
+    folder_name = request.match_info.get('archive_hash', None)
+    print(folder_name)
     response = web.StreamResponse()
-    response.headers['Content-Type'] = 'text/html'
+    response.headers['Content-Type'] = 'application/zip'
+    response.headers['Content-Disposition'] = 'attachment; filename=test.zip'
 
     await response.prepare(request)
 
+    path = f'test_photos/{folder_name}'
+    proc = await asyncio.create_subprocess_shell(f'zip -r -j - {path}', stdout=asyncio.subprocess.PIPE)
     while True:
-        formatted_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        message = f'{formatted_date}<br>'
-        await response.write(message.encode('utf-8'))
-        await asyncio.sleep(INTERVAL_SECS)
+        chunk = await proc.stdout.read(100)
+        if proc.stdout.at_eof():
+            break
+        await response.write(chunk)
+        # await asyncio.sleep(INTERVAL_SECS)
+    return response
 
 
 async def handle_index_page(request):
