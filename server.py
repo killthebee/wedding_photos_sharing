@@ -1,6 +1,5 @@
 import os
 import aiofiles
-import datetime
 import asyncio
 import logging
 
@@ -11,15 +10,11 @@ INTERVAL_SECS = 0.5
 logging.basicConfig(format=u'%(message)s', level=logging.DEBUG)
 
 
-async def kill_zip():
-    proc = await asyncio.create_subprocess_exec('ps', '-a', stdout=asyncio.subprocess.PIPE)
+async def kill_zip(parent_pid):
+    print(parent_pid)
+    proc = await asyncio.create_subprocess_exec('pgrep', '-P', f'{parent_pid}', stdout=asyncio.subprocess.PIPE)
     result, _ = await proc.communicate()
-    result = str(result.decode()).split('\n')
-    zip_pid = None
-    for process in result:
-        if 'zip' in process:
-            pid_id = 2
-            zip_pid = process.split(' ')[pid_id]
+    zip_pid = int(result.decode())
     await asyncio.create_subprocess_exec('kill', '-9', f'{zip_pid}')
 
 
@@ -38,20 +33,27 @@ async def archivate(request):
     await response.prepare(request)
 
     proc = await asyncio.create_subprocess_shell(f'zip -r -j - {path}', stdout=asyncio.subprocess.PIPE)
+    print(proc.pid)
+    i = 0
     try:
         while True:
-                chunk = await proc.stdout.read(100)
-                if proc.stdout.at_eof():
-                    break
-                await response.write(chunk)
-                await asyncio.sleep(INTERVAL_SECS)
-                logging.info(u'Sending archive chunk ...')
+            chunk = await proc.stdout.read(100)
+            if proc.stdout.at_eof():
+                break
+            await response.write(chunk)
+            await asyncio.sleep(INTERVAL_SECS)
+            logging.info(u'Sending archive chunk ...')
+            i += 1
+            if i > 200:
+                raise IndexError
     except asyncio.CancelledError:
         logging.info(u'Download was interrupted')
-        await kill_zip()
+        await kill_zip(proc.pid)
+        await proc.communicate()
     except:
         logging.info(u'Something went rly wrong')
-        await kill_zip()
+        await kill_zip(proc.pid)
+        await proc.communicate()
         raise web.HTTPInternalServerError()
 
     return response
