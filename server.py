@@ -18,7 +18,6 @@ PATH_TO_FOLDER = os.getenv("PATH_TO_FOLDER", '')
 
 
 async def kill_zip(parent_pid):
-    print(parent_pid)
     proc = await asyncio.create_subprocess_exec('pgrep', '-P', f'{parent_pid}', stdout=asyncio.subprocess.PIPE)
     result, _ = await proc.communicate()
     zip_pid = int(result.decode())
@@ -40,7 +39,6 @@ async def archivate(request):
     await response.prepare(request)
 
     proc = await asyncio.create_subprocess_shell(f'zip -r -j - {path}', stdout=asyncio.subprocess.PIPE)
-    print(proc.pid)
     i = 0
     try:
         while True:
