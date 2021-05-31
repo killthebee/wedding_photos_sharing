@@ -4,10 +4,17 @@ import asyncio
 import logging
 
 from aiohttp import web
+from dotenv import load_dotenv
+load_dotenv()
 
 
-INTERVAL_SECS = 0.5
-logging.basicConfig(format=u'%(message)s', level=logging.DEBUG)
+INTERVAL_SECS = os.getenv("INTERVAL_SECS", None)
+if os.getenv("LOGGER", None):
+    logger_level = logging.DEBUG
+else:
+    logger_level = logging.CRITICAL
+logging.basicConfig(format=u'%(message)s', level=logger_level)
+PATH_TO_FOLDER = os.getenv("PATH_TO_FOLDER", '')
 
 
 async def kill_zip(parent_pid):
@@ -20,7 +27,7 @@ async def kill_zip(parent_pid):
 
 async def archivate(request):
     folder_name = request.match_info.get('archive_hash', None)
-    path = f'test_photos/{folder_name}'
+    path = f'{PATH_TO_FOLDER}/{folder_name}'
 
     if not os.path.exists(os.path.normpath(os.path.join(os.getcwd(), path))):
         async with aiofiles.open('missing_folder.html', mode='r') as missing_folder_file:
@@ -41,7 +48,8 @@ async def archivate(request):
             if proc.stdout.at_eof():
                 break
             await response.write(chunk)
-            await asyncio.sleep(INTERVAL_SECS)
+            if INTERVAL_SECS is not None:
+                await asyncio.sleep(int(INTERVAL_SECS))
             logging.info(u'Sending archive chunk ...')
             i += 1
             if i > 200:
