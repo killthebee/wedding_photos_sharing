@@ -39,7 +39,6 @@ async def archivate(request):
     await response.prepare(request)
 
     proc = await asyncio.create_subprocess_shell(f'zip -r -j - {path}', stdout=asyncio.subprocess.PIPE)
-    i = 0
     try:
         while True:
             chunk = await proc.stdout.read(100)
@@ -49,9 +48,6 @@ async def archivate(request):
             if INTERVAL_SECS is not None:
                 await asyncio.sleep(int(INTERVAL_SECS))
             logging.info(u'Sending archive chunk ...')
-            i += 1
-            if i > 200:
-                raise IndexError
     except asyncio.CancelledError:
         logging.info(u'Download was interrupted')
         await kill_zip(proc.pid)
