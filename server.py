@@ -8,13 +8,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-INTERVAL_SECS = os.getenv("INTERVAL_SECS", None)
-if os.getenv("LOGGER", None):
+INTERVAL_SECS = os.getenv('INTERVAL_SECS', None)
+if os.getenv('LOGGER', None):
     logger_level = logging.DEBUG
 else:
     logger_level = logging.CRITICAL
 logging.basicConfig(format=u'%(message)s', level=logger_level)
-PATH_TO_FOLDER = os.getenv("PATH_TO_FOLDER", '')
+PATH_TO_FOLDER = os.getenv('PATH_TO_FOLDER', '')
 
 
 async def kill_zip(parent_pid):
@@ -39,7 +39,6 @@ async def archivate(request):
     await response.prepare(request)
 
     proc = await asyncio.create_subprocess_shell(f'zip -r -j - {path}', stdout=asyncio.subprocess.PIPE)
-    i = 0
     try:
         while True:
             chunk = await proc.stdout.read(100)
@@ -49,13 +48,11 @@ async def archivate(request):
             if INTERVAL_SECS is not None:
                 await asyncio.sleep(int(INTERVAL_SECS))
             logging.info(u'Sending archive chunk ...')
-            i += 1
-            if i > 200:
-                raise IndexError
     except asyncio.CancelledError:
         logging.info(u'Download was interrupted')
         await kill_zip(proc.pid)
         await proc.communicate()
+        raise
     except:
         logging.info(u'Something went rly wrong')
         await kill_zip(proc.pid)
@@ -69,8 +66,6 @@ async def handle_index_page(request):
     async with aiofiles.open('index.html', mode='r') as index_file:
         index_contents = await index_file.read()
     return web.Response(text=index_contents, content_type='text/html')
-
-
 
 
 if __name__ == '__main__':
