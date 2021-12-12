@@ -38,11 +38,12 @@ async def archivate(request):
     response.headers['Content-Disposition'] = 'attachment; filename=test.zip'
     await response.prepare(request)
 
-    proc = await asyncio.create_subprocess_shell(f'zip -r -j - {path}', stdout=asyncio.subprocess.PIPE)
+    proc = await asyncio.create_subprocess_shell(f'zip -r - .', cwd=path, stdout=asyncio.subprocess.PIPE)
     try:
         while True:
             chunk = await proc.stdout.read(100)
             if proc.stdout.at_eof():
+                logging.info(u'Finish sending archive chunks')
                 break
             await response.write(chunk)
             if INTERVAL_SECS is not None:
