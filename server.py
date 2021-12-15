@@ -7,13 +7,6 @@ import argparse
 from aiohttp import web
 
 
-async def kill_zip(parent_pid):
-    proc = await asyncio.create_subprocess_exec('pgrep', '-P', f'{parent_pid}', stdout=asyncio.subprocess.PIPE)
-    result, _ = await proc.communicate()
-    zip_pid = int(result.decode())
-    await asyncio.create_subprocess_exec('kill', '-9', f'{zip_pid}')
-
-
 async def archivate(request):
     folder_name = request.match_info.get('archive_hash', None)
     path = f"{request.app['path_to_folder']}/{folder_name}"
@@ -28,7 +21,7 @@ async def archivate(request):
     response.headers['Content-Disposition'] = 'attachment; filename=test.zip'
     await response.prepare(request)
 
-    proc = await asyncio.create_subprocess_shell(f'zip -r - .', cwd=path, stdout=asyncio.subprocess.PIPE)
+    proc = await asyncio.create_subprocess_exec('zip', '-r', '-', '.', cwd=path, stdout=asyncio.subprocess.PIPE)
     try:
         while True:
             chunk = await proc.stdout.read(100)
@@ -41,13 +34,13 @@ async def archivate(request):
             logging.info(u'Sending archive chunk ...')
     except asyncio.CancelledError:
         logging.info(u'Download was interrupted')
-        await kill_zip(proc.pid)
-        await proc.communicate()
+        if proc.returncode is None:
+            proc.terminate()
         raise
     except:
         logging.info(u'Something went rly wrong')
-        await kill_zip(proc.pid)
-        await proc.communicate()
+        if proc.returncode is None:
+            proc.terminate()
         raise web.HTTPInternalServerError()
 
     return response
