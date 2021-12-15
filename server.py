@@ -26,19 +26,19 @@ async def archivate(request):
         while True:
             chunk = await proc.stdout.read(100)
             if proc.stdout.at_eof():
-                logging.info(u'Finish sending archive chunks')
+                logging.info('Finish sending archive chunks')
                 break
             await response.write(chunk)
             if request.app['interval_secs'] is not None:
                 await asyncio.sleep(int(request.app['interval_secs']))
             logging.info(u'Sending archive chunk ...')
     except asyncio.CancelledError:
-        logging.info(u'Download was interrupted')
+        logging.info('Download was interrupted')
         if proc.returncode is None:
             proc.terminate()
         raise
-    except:
-        logging.info(u'Something went rly wrong')
+    except Exception as error:
+        logging.info(f'Something went rly wrong: {error}')
         if proc.returncode is None:
             proc.terminate()
         raise web.HTTPInternalServerError()
