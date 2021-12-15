@@ -2,19 +2,9 @@ import os
 import aiofiles
 import asyncio
 import logging
+import argparse
 
 from aiohttp import web
-from dotenv import load_dotenv
-load_dotenv()
-
-
-INTERVAL_SECS = os.getenv('INTERVAL_SECS', None)
-if os.getenv('LOGGER', None):
-    logger_level = logging.DEBUG
-else:
-    logger_level = logging.CRITICAL
-logging.basicConfig(format=u'%(message)s', level=logger_level)
-PATH_TO_FOLDER = os.getenv('PATH_TO_FOLDER', '')
 
 
 async def kill_zip(parent_pid):
@@ -26,7 +16,7 @@ async def kill_zip(parent_pid):
 
 async def archivate(request):
     folder_name = request.match_info.get('archive_hash', None)
-    path = f'{PATH_TO_FOLDER}/{folder_name}'
+    path = f"{request.app['path_to_folder']}/{folder_name}"
 
     if not os.path.exists(os.path.normpath(os.path.join(os.getcwd(), path))):
         async with aiofiles.open('missing_folder.html', mode='r') as missing_folder_file:
@@ -46,8 +36,8 @@ async def archivate(request):
                 logging.info(u'Finish sending archive chunks')
                 break
             await response.write(chunk)
-            if INTERVAL_SECS is not None:
-                await asyncio.sleep(int(INTERVAL_SECS))
+            if request.app['interval_secs'] is not None:
+                await asyncio.sleep(int(request.app['interval_secs']))
             logging.info(u'Sending archive chunk ...')
     except asyncio.CancelledError:
         logging.info(u'Download was interrupted')
@@ -70,7 +60,21 @@ async def handle_index_page(request):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='server settings')
+    parser.add_argument('-i', '--interval_secs', default=None, help='interval between downloading zip chunks')
+    parser.add_argument('-p', '--ptf', default='test_photos', help='path to folder with photos')
+    parser.add_argument('-l', '--logger', default=True, help='logging level')
+    args = parser.parse_args()
+
+    logger_level = logging.CRITICAL
+    if args.logger:
+        logger_level = logging.DEBUG
+    logging.basicConfig(format=u'%(message)s', level=logger_level)
+
     app = web.Application()
+    app['interval_secs'] = args.interval_secs
+    app['path_to_folder'] = args.ptf
+
     app.add_routes([
         web.get('/', handle_index_page),
         web.get('/archive/{archive_hash}/', archivate),
