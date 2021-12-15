@@ -8,7 +8,7 @@ from aiohttp import web
 
 
 async def archivate(request):
-    folder_name = request.match_info.get('archive_hash', None)
+    folder_name = request.match_info.get('archive_hash')
     path = f"{request.app['path_to_folder']}/{folder_name}"
 
     if not os.path.exists(os.path.normpath(os.path.join(os.getcwd(), path))):
@@ -35,12 +35,12 @@ async def archivate(request):
     except asyncio.CancelledError:
         logging.info('Download was interrupted')
         if proc.returncode is None:
-            proc.terminate()
+            proc.kill()
         raise
     except Exception as error:
         logging.info(f'Something went rly wrong: {error}')
         if proc.returncode is None:
-            proc.terminate()
+            proc.kill()
         raise web.HTTPInternalServerError()
 
     return response
